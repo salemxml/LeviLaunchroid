@@ -33,6 +33,16 @@
     <string name="import_apk_subtitle">Install Minecraft from APK or APKS file</string>
     <string name="ms_add_account">Add Account</string>
     <string name="ms_add_account_subtitle">Sign in with Microsoft</string>
+    <string name="offline_add_account">Add Offline Account</string>
+    <string name="offline_add_account_subtitle">Play without Microsoft login</string>
+    <string name="offline_username_hint">Enter your username</string>
+    <string name="offline_username_title">Offline Account</string>
+    <string name="offline_username_message">Enter a username to play without signing in to Microsoft. Works with modified Minecraft.</string>
+    <string name="offline_account_added">Offline account added: %1$s</string>
+    <string name="offline_badge">Offline</string>
+    <string name="add_microsoft_account">Add Microsoft Account</string>
+    <string name="add_offline_account">Add Offline Account</string>
+    <string name="choose_account_type">Choose account type</string>
 
     <!-- Dialogs -->
     <string name="content_detected_title">Content Detected</string>
@@ -153,7 +163,7 @@
     <string name="error_no_browser">No browser available</string>
 
     <string name="eula_title">LeviLauncher License Agreement</string>
-    <string name="eula_message"><b>Welcome to LeviLauncher</b>\n\nBy using this software you agree to:\n\n• This is an <b>unofficial</b> Minecraft launcher\n• You must own a <b>licensed</b> copy of Minecraft\n• Any form of piracy or cheating is prohibited\n• Mods/resource packs are used at your own risk\n• Not affiliated with Mojang/Microsoft\n\nContinued use constitutes agreement</string>
+    <string name="eula_message"><b>Welcome to LeviLauncher</b>\n\nBy using this software you agree to:\n\n• This is an <b>unofficial</b> Minecraft launcher\n• Supports both official and modified Minecraft APKs\n• Mods/resource packs are used at your own risk\n• Not affiliated with Mojang/Microsoft\n• Offline accounts are supported for modified Minecraft\n\nContinued use constitutes agreement</string>
     <string name="eula_agree">Accept</string>
     <string name="eula_exit">Decline</string>
 

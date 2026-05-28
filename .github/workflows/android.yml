@@ -58,16 +58,51 @@ jobs:
       - name: Inject API Keys
         env:
           CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-        run: echo "curseforge.api_key=${CF_API_KEY}" >> local.properties
+        run: echo "curseforge.api_key=${CF_API_KEY:-}" >> local.properties
 
       - name: Build Debug, Beta and Unsigned Release APKs
         run: ./gradlew assembleDebug assembleBeta assembleRelease
+
+      - name: Generate Debug Keystore (for non-tag builds)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        run: |
+          keytool -genkeypair \
+            -keystore debug-release.jks \
+            -alias levilauncher \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=LeviLauncher, OU=Build, O=LeviMC, L=Unknown, S=Unknown, C=US" \
+            -storepass android \
+            -keypass android
+
+      - name: Sign Release APK with Debug Keystore (non-tag builds)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        run: |
+          BUILD_TOOLS=$ANDROID_HOME/build-tools/35.0.0
+          UNSIGNED=$(ls app/build/outputs/apk/release/*-unsigned.apk | head -1)
+          $BUILD_TOOLS/zipalign -v -p 4 "$UNSIGNED" app/build/outputs/apk/release/aligned.apk
+          $BUILD_TOOLS/apksigner sign \
+            --ks debug-release.jks \
+            --ks-key-alias levilauncher \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out app/build/outputs/apk/release/LeviLauncher-debug-signed-release.apk \
+            app/build/outputs/apk/release/aligned.apk
+          echo "Debug-signed release APK ready."
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4.6.2
         with:
           name: LeviLauncher-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload Debug-Signed Release APK (non-tag builds)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: LeviLauncher-release-signed-apk
+          path: app/build/outputs/apk/release/LeviLauncher-debug-signed-release.apk
 
       - name: Upload Unsigned Release APK
         uses: actions/upload-artifact@v4.6.2
@@ -81,7 +116,7 @@ jobs:
           name: LeviLauncher-beta-apk
           path: app/build/outputs/apk/beta/*.apk
 
-      - name: Sign Release APK
+      - name: Sign Release APK (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: kevin-david/zipalign-sign-android-release@v2
         id: sign_app

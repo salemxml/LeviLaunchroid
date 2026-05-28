@@ -1,8 +1,10 @@
 package org.levimc.launcher.ui.activities;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Button;
 import android.widget.TextView;
@@ -17,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import org.levimc.launcher.R;
 import org.levimc.launcher.core.auth.MsftAccountStore;
 import org.levimc.launcher.core.auth.MsftAuthManager;
+import org.levimc.launcher.core.auth.OfflineAccountManager;
 import org.levimc.launcher.ui.adapter.AccountsAdapter;
 import org.levimc.launcher.ui.animation.DynamicAnim;
 import org.levimc.launcher.ui.dialogs.LoadingDialog;
@@ -122,11 +125,7 @@ public class AccountsActivity extends BaseActivity {
             refreshUI();
         });
 
-        View.OnClickListener addAction = v -> {
-            loginResultHandled.set(false);
-            Intent i = new Intent(this, MsftLoginActivity.class);
-            loginLauncher.launch(i);
-        };
+        View.OnClickListener addAction = v -> showAddAccountDialog();
         if (bottomAddButton != null) bottomAddButton.setOnClickListener(addAction);
         if (bottomAddButton != null) DynamicAnim.applyPressScale(bottomAddButton);
 
@@ -134,6 +133,15 @@ public class AccountsActivity extends BaseActivity {
             @Override
             public void onSetActive(MsftAccountStore.MsftAccount account) {
                 MsftAccountStore.setActive(AccountsActivity.this, account.id);
+
+                if (OfflineAccountManager.isOfflineAccount(account)) {
+                    runOnUiThread(() -> {
+                        String statusName = AccountTextUtils.displayNameOrNotSigned(AccountsActivity.this, account);
+                        Toast.makeText(AccountsActivity.this, getString(R.string.ms_login_success, statusName), Toast.LENGTH_SHORT).show();
+                        refreshUI();
+                    });
+                    return;
+                }
 
                 boolean withinSevenDays = AccountTextUtils.isRecentlyUpdated(account, 7);
 
@@ -190,6 +198,54 @@ public class AccountsActivity extends BaseActivity {
         accountsRecyclerView.post(() -> DynamicAnim.staggerRecyclerChildren(accountsRecyclerView));
 
         refreshUI();
+    }
+
+    private void showAddAccountDialog() {
+        String[] options = {
+                getString(R.string.add_microsoft_account),
+                getString(R.string.add_offline_account)
+        };
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.choose_account_type))
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        loginResultHandled.set(false);
+                        Intent i = new Intent(this, MsftLoginActivity.class);
+                        loginLauncher.launch(i);
+                    } else {
+                        showOfflineAccountDialog();
+                    }
+                })
+                .show();
+    }
+
+    private void showOfflineAccountDialog() {
+        EditText input = new EditText(this);
+        input.setHint(getString(R.string.offline_username_hint));
+        input.setSingleLine(true);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        input.setPadding(padding, padding, padding, padding);
+
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.offline_username_title))
+                .setMessage(getString(R.string.offline_username_message))
+                .setView(input)
+                .setPositiveButton(getString(R.string.confirm), (dialog, which) -> {
+                    String username = input.getText().toString().trim();
+                    if (username.isEmpty()) {
+                        Toast.makeText(this, getString(R.string.offline_username_hint), Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    try {
+                        OfflineAccountManager.addOfflineAccount(this, username);
+                        Toast.makeText(this, getString(R.string.offline_account_added, username), Toast.LENGTH_SHORT).show();
+                        refreshUI();
+                    } catch (Exception e) {
+                        Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show();
     }
 
     private MsftAccountStore.MsftAccount getActiveAccount() {

@@ -4,17 +4,25 @@ import android.content.Context;
 
 import org.levimc.launcher.R;
 import org.levimc.launcher.core.auth.MsftAccountStore;
+import org.levimc.launcher.core.auth.OfflineAccountManager;
 
 public final class AccountTextUtils {
     private AccountTextUtils() {}
 
     public static String titleOrUnknown(MsftAccountStore.MsftAccount a) {
         if (a == null) return "Unknown";
-        return a.minecraftUsername != null ? a.minecraftUsername : (a.xboxGamertag != null ? a.xboxGamertag : "Unknown");
+        String name = a.minecraftUsername != null ? a.minecraftUsername : (a.xboxGamertag != null ? a.xboxGamertag : "Unknown");
+        if (OfflineAccountManager.isOfflineAccount(a)) {
+            return name + " [Offline]";
+        }
+        return name;
     }
 
     public static String subtitle(MsftAccountStore.MsftAccount a) {
         if (a == null) return "";
+        if (OfflineAccountManager.isOfflineAccount(a)) {
+            return "Offline Account";
+        }
         if (a.xuid != null && !a.xuid.isEmpty()) return "XUID: " + a.xuid;
         if (a.msUserId != null && !a.msUserId.isEmpty()) return "MS ID: " + a.msUserId;
         return "";

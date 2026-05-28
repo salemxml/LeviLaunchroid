@@ -31,14 +31,13 @@ import org.levimc.launcher.settings.FeatureSettings;
 
 import org.levimc.launcher.ui.animation.DynamicAnim;
 import org.levimc.launcher.ui.dialogs.CustomAlertDialog;
-import org.levimc.launcher.ui.dialogs.PlayStoreValidationDialog;
+import org.levimc.launcher.core.auth.OfflineAccountManager;
 import org.levimc.launcher.ui.views.MainViewModel;
 import org.levimc.launcher.ui.views.MainViewModelFactory;
 import org.levimc.launcher.util.ApkImportManager;
 import org.levimc.launcher.util.GithubReleaseUpdater;
 import org.levimc.launcher.util.LanguageManager;
 import org.levimc.launcher.util.PermissionsHandler;
-import org.levimc.launcher.util.PlayStoreValidator;
 import org.levimc.launcher.util.ResourcepackHandler;
 import org.levimc.launcher.util.UIHelper;
 import org.levimc.launcher.core.content.ContentManager;
@@ -356,6 +355,16 @@ import okhttp3.OkHttpClient;
                      popup.dismiss();
 
                      MsftAccountStore.setActive(MainActivity.this, account.id);
+
+                     if (OfflineAccountManager.isOfflineAccount(account)) {
+                         runOnUiThread(() -> {
+                             String statusName = AccountTextUtils.displayNameOrNotSigned(MainActivity.this, account);
+                             Toast.makeText(MainActivity.this, getString(R.string.ms_login_success, statusName), Toast.LENGTH_SHORT).show();
+                             refreshAccountHeaderUI();
+                         });
+                         return;
+                     }
+
                      boolean withinSevenDays = AccountTextUtils.isRecentlyUpdated(account, 7);
 
                      if (withinSevenDays) {
@@ -767,12 +776,6 @@ import okhttp3.OkHttpClient;
                     })
                     .setNegativeButton(getString(R.string.dialog_negative_cancel), null)
                     .show();
-            return;
-        }
-
-        if (!PlayStoreValidator.isMinecraftFromPlayStore(this)) {
-            binding.launchButton.setEnabled(true);
-            PlayStoreValidationDialog.showNotFromPlayStoreDialog(this);
             return;
         }
 
