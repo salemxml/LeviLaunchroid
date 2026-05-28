@@ -1,7 +1,5 @@
 package com.microsoft.applications.events;
 
-import com.android.billingclient.api.ProxyBillingActivity;
-
 /**
  * @author <a href="https://github.com/RadiantByte">RadiantByte</a>
  */
