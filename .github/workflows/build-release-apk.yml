@@ -1,0 +1,132 @@
+name: Build Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      sign_type:
+        description: 'Signing method'
+        required: true
+        default: 'debug-keystore'
+        type: choice
+        options:
+          - debug-keystore
+          - release-keystore
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-release:
+    name: Build & Sign Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept SDK Licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install Build Tools 35.0.0
+        run: sdkmanager "build-tools;35.0.0"
+
+      - name: Setup Xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: "2.9.9"
+          actions-cache-folder: ".xmake-cache"
+          actions-cache-key: "ubuntulinux-release"
+
+      - name: Setup Android NDK r27c
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          link-to-sdk: true
+
+      - name: Grant Execute Permission to gradlew
+        run: chmod +x ./gradlew
+
+      - name: Inject CurseForge API Key
+        env:
+          CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+        run: echo "curseforge.api_key=${CF_API_KEY:-}" >> local.properties
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
+
+      - name: Generate Debug Keystore
+        if: ${{ github.event.inputs.sign_type != 'release-keystore' }}
+        run: |
+          keytool -genkeypair \
+            -keystore levi-debug.jks \
+            -alias levilauncher \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=LeviLauncher, OU=Build, O=LeviMC, L=Unknown, S=Unknown, C=US" \
+            -storepass android \
+            -keypass android
+          echo "KEYSTORE_PATH=levi-debug.jks" >> $GITHUB_ENV
+          echo "KEYSTORE_ALIAS=levilauncher" >> $GITHUB_ENV
+          echo "KEYSTORE_PASS=android" >> $GITHUB_ENV
+          echo "KEY_PASS=android" >> $GITHUB_ENV
+
+      - name: Prepare Release Keystore
+        if: ${{ github.event.inputs.sign_type == 'release-keystore' }}
+        env:
+          SIGNING_KEY_STORE: ${{ secrets.SIGNING_KEY_STORE }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          echo "$SIGNING_KEY_STORE" | base64 -d > release.jks
+          echo "KEYSTORE_PATH=release.jks" >> $GITHUB_ENV
+          echo "KEYSTORE_ALIAS=$SIGNING_KEY_ALIAS" >> $GITHUB_ENV
+          echo "KEYSTORE_PASS=$SIGNING_STORE_PASSWORD" >> $GITHUB_ENV
+          echo "KEY_PASS=$SIGNING_KEY_PASSWORD" >> $GITHUB_ENV
+
+      - name: Align & Sign Release APK
+        run: |
+          BUILD_TOOLS=$ANDROID_HOME/build-tools/35.0.0
+          UNSIGNED=$(find app/build/outputs/apk/release -name "*-unsigned.apk" | head -1)
+          echo "Found unsigned APK: $UNSIGNED"
+
+          $BUILD_TOOLS/zipalign -v -p 4 "$UNSIGNED" app/build/outputs/apk/release/aligned.apk
+
+          $BUILD_TOOLS/apksigner sign \
+            --ks "$KEYSTORE_PATH" \
+            --ks-key-alias "$KEYSTORE_ALIAS" \
+            --ks-pass "pass:$KEYSTORE_PASS" \
+            --key-pass "pass:$KEY_PASS" \
+            --out app/build/outputs/apk/release/LeviLauncher-release.apk \
+            app/build/outputs/apk/release/aligned.apk
+
+          echo "APK signed successfully."
+          ls -lh app/build/outputs/apk/release/
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LeviLauncher-Release-APK
+          path: app/build/outputs/apk/release/LeviLauncher-release.apk
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          echo "## Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**APK:** \`LeviLauncher-release.apk\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download it from the **Artifacts** section above." >> $GITHUB_STEP_SUMMARY
