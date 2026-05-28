@@ -1,0 +1,64 @@
+name: Build Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      sign_type:
+        description: 'Signing method'
+        required: true
+        default: 'debug-keystore'
+        type: choice
+        options:
+          - debug-keystore
+          - release-keystore
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-release:
+    name: Build & Sign Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept SDK Licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install Build Tools 35.0.0
+        run: sdkmanager "build-tools;35.0.0"
+
+      - name: Setup Xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: "2.9.9"
+          actions-cache-folder: ".xmake-cache"
+          actions-cache-key: "ubuntulinux-release"
+
+      - name: Setup Android NDK r27c
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          link-to-sdk: true
+
+      - name: Grant Execute Permission to gradlew
+        run: chmod +x ./gradlew
+
+      - name: Inject CurseForge API Key
+        env:
+          CF_API_KEY: ${{ secrets.
