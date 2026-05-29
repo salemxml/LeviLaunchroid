@@ -1,11 +1,12 @@
 package com.microsoft.xbox.service.notification;
 
-import com.google.firebase.messaging.FirebaseMessagingService;
-import com.microsoft.xbox.idp.interop.Interop;
+import android.app.Service;
+import android.content.Intent;
+import android.os.IBinder;
 
-public class NotificationFirebaseMessagingService extends FirebaseMessagingService {
+public class NotificationFirebaseMessagingService extends Service {
     @Override
-    public void onNewToken(String str) {
-        Interop.NotificationRegisterCallback(str);
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 }
