@@ -1,21 +1,26 @@
 #!/bin/bash
 set -e
 
-echo "=== Syncing with GitHub ==="
+if [ -z "$GITHUB_PAT" ]; then
+    echo "ERROR: GITHUB_PAT not found in environment."
+    echo "Make sure it is added in Replit Secrets tab."
+    exit 1
+fi
 
-echo "[1/3] Fetching remote changes..."
+echo "=== Setting up credentials ==="
+git config --global credential.helper store
+echo "https://salemxml:${GITHUB_PAT}@github.com" > ~/.git-credentials
+chmod 600 ~/.git-credentials
+
+echo "=== Fetching remote changes ==="
 git fetch origin main
 
-echo "[2/3] Merging remote changes..."
-git merge origin/main --no-edit --allow-unrelated-histories || {
-    echo "Merge conflict detected. Trying strategy..."
-    git merge origin/main --no-edit --strategy-option theirs
-}
+echo "=== Merging ==="
+git merge origin/main --no-edit --allow-unrelated-histories 2>/dev/null || true
 
-echo "[3/3] Pushing to GitHub..."
+echo "=== Pushing to GitHub ==="
 GIT_TERMINAL_PROMPT=0 git push origin main
 
 echo ""
-echo "Done! All changes pushed to GitHub."
-echo "Go to: https://github.com/salemxml/LeviLaunchroid/actions"
-echo "Find 'Build Release APK' and click 'Run workflow'"
+echo "✓ Done! All changes pushed to GitHub."
+echo "→ https://github.com/salemxml/LeviLaunchroid/actions"
